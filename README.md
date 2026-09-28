@@ -81,4 +81,3 @@ All insights are delivered through a clean, branded, multi-page Streamlit interf
 | **5** | **Visitor Forecast** | Linear regression + seasonality to predict future review volume with confidence bands and suggested actions |
 
 
-## 📁 Project Structure
