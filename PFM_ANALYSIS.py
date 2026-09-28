@@ -778,8 +778,7 @@ with i2:
             )
         if response_rate < 30:
             improvements.append(
-                f"Owner response rate is low ({response_rate:.1f}%). "
-                "Aim for at least 30%."
+                f"Owner response rate is ({response_rate:.1f}%). "
             )
         if not improvements:
             improvements.append("Keep monitoring for emerging issues.")
