@@ -28,6 +28,38 @@ apply_global_styles()
 
 
 # ============================================================
+# CUSTOM CSS — Warna Search Box
+# ============================================================
+
+st.markdown("""
+<style>
+div[data-baseweb="select"] input {
+    background-color: #FFF9E6 !important;
+    color: #292929 !important;
+    border-radius: 8px !important;
+    padding: 6px 10px !important;
+}
+div[data-baseweb="select"] input:focus {
+    border: 2px solid #F2B705 !important;
+    box-shadow: 0 0 0 2px rgba(242, 183, 5, 0.2) !important;
+    outline: none !important;
+}
+div[data-baseweb="select"] > div {
+    border-color: #F2B705 !important;
+    border-radius: 8px !important;
+}
+div[data-baseweb="select"] input::placeholder {
+    color: #A08000 !important;
+    font-style: italic !important;
+}
+div[data-baseweb="popover"] li:hover {
+    background-color: #FFF3CC !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
+# ============================================================
 # LOAD DATA
 # ============================================================
 
@@ -36,8 +68,20 @@ df = load_data().copy()
 df["date"] = pd.to_datetime(df["date"], errors="coerce")
 
 df = df.rename(columns={
+    "reviewer": "name",
+    "author": "name",
+    "user": "name",
+    "user_name": "name",
     "reviewer_name": "name",
+    "review_url": "reviewUrl",
+    "url": "reviewUrl",
+    "link": "reviewUrl",
+    "review_link": "reviewUrl",
+    "google_url": "reviewUrl",
     "owner_response": "responseFromOwnerText",
+    "response": "responseFromOwnerText",
+    "owner_response_text": "responseFromOwnerText",
+    "response_from_owner_text": "responseFromOwnerText",
 })
 
 if "reviewUrl" not in df.columns:
@@ -54,24 +98,184 @@ if "sentiment" not in df.columns:
 # ============================================================
 # SIDEBAR
 # ============================================================
+# 1. render_sidebar() — brand + navigation SAHAJA
+# 2. Attraction Selection (buat sendiri)
+# 3. Timeline Filter        (buat sendiri)  ← DI SINI
+# 4. Review & Text Filters  (buat sendiri)
+# ============================================================
 
-sidebar = render_sidebar(
+# ----- 1) Brand + navigation (TIADA attraction / filters) -----
+render_sidebar(
     current_page="detail_review",
-    show_attraction_selector=True,
-    attraction_options=sorted(df["attraction_name"].dropna().unique()),
-    show_extra_filters=True,
-    show_sentiment_filter=True,
+    show_attraction_selector=False,
+    show_extra_filters=False,
 )
 
-selected_attraction = sidebar["attraction"]
-rating_filter = sidebar["rating_filter"]
-sentiment_filter = sidebar["sentiment_filter"]
-min_words_limit = sidebar["min_words"]
-max_words_limit = sidebar["max_words"]
+
+# ----- 2) Attraction Selection -----
+attraction_options = sorted(df["attraction_name"].dropna().unique())
+
+with st.sidebar:
+
+    st.markdown(
+        """
+        <p style="
+            font-family:Poppins,Arial,sans-serif;
+            font-size:14px;
+            font-weight:700;
+            color:#292929;
+            margin-bottom:5px;
+        ">
+            Attraction Selection
+        </p>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    selected_attraction = st.selectbox(
+        "Select Attraction:",
+        options=attraction_options,
+        label_visibility="collapsed",
+        key="sidebar_attraction",
+    )
+
+
+# ----- 3) TIMELINE FILTER  ← DI BAWAH ATTRACTION -----
+valid_dates = df["date"].dropna()
+
+timeline_start = None
+timeline_end = None
+
+if not valid_dates.empty:
+    global_min = valid_dates.min().date()
+    global_max = valid_dates.max().date()
+
+    with st.sidebar:
+
+        st.markdown(
+            """
+            <p style="
+                font-family:Poppins,Arial,sans-serif;
+                font-size:14px;
+                font-weight:700;
+                color:#292929;
+                margin-bottom:5px;
+            ">
+                 Timeline Filter
+            </p>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        preset = st.selectbox(
+            "Quick range:",
+            ["All time", "Past Week", "Past Month", "Past 3 Months",
+             "Past 6 Months", "Past Year", "Past 2 Years", "Custom"],
+            index=0,
+            key="detail_date_preset",
+        )
+
+        today = pd.Timestamp.today().normalize()
+
+        if preset == "All time":
+            start_date, end_date = global_min, global_max
+        elif preset == "Past Week":
+            start_date = (today - pd.Timedelta(days=7)).date()
+            end_date = today.date()
+        elif preset == "Past Month":
+            start_date = (today - pd.Timedelta(days=30)).date()
+            end_date = today.date()
+        elif preset == "Past 3 Months":
+            start_date = (today - pd.Timedelta(days=90)).date()
+            end_date = today.date()
+        elif preset == "Past 6 Months":
+            start_date = (today - pd.Timedelta(days=180)).date()
+            end_date = today.date()
+        elif preset == "Past Year":
+            start_date = (today - pd.Timedelta(days=365)).date()
+            end_date = today.date()
+        elif preset == "Past 2 Years":
+            start_date = (today - pd.Timedelta(days=730)).date()
+            end_date = today.date()
+        else:  # Custom
+            picked = st.date_input(
+                "Custom range:",
+                value=(global_min, global_max),
+                min_value=global_min,
+                max_value=global_max,
+                key="detail_custom_date_range",
+            )
+            if isinstance(picked, tuple) and len(picked) == 2:
+                start_date, end_date = picked
+            else:
+                start_date, end_date = global_min, global_max
+
+        if start_date < global_min:
+            start_date = global_min
+        if end_date > global_max:
+            end_date = global_max
+
+        st.caption(f"Range: **{start_date}** → **{end_date}**")
+
+    timeline_start = start_date
+    timeline_end = end_date
+
+
+# ----- 4) Review & Text Filters  ← DI BAWAH TIMELINE -----
+with st.sidebar:
+
+    st.markdown("---")
+    st.markdown(
+        """
+        <p style="
+            font-family:Poppins,Arial,sans-serif;
+            font-size:14px;
+            font-weight:700;
+            color:#292929;
+            margin-bottom:5px;
+        ">
+            Review &amp; Text Filters
+        </p>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    rating_filter = st.selectbox(
+        "Filter by Star Rating:",
+        options=["All Ratings", "5 ⭐", "4 ⭐", "3 ⭐", "2 ⭐", "1 ⭐"],
+        key="sidebar_rating_filter",
+    )
+
+    sentiment_filter = st.selectbox(
+        "Filter by Sentiment:",
+        options=["All Sentiments", "Positive", "Neutral", "Negative"],
+        key="sidebar_sentiment_filter",
+    )
+
+    max_words_limit = st.slider(
+        "Max Words Shown:", 20, 200, 100, 10, key="sidebar_max"
+    )
+
+    min_words_limit = 4  # default
+
+    st.caption(
+        "Use the filters above to explore attraction reviews "
+        "and visitor feedback."
+    )
 
 
 # ============================================================
-# HEADER — LOGO + TAJUK + SUBTITLE + YELLOW LINE
+# APPLY TIMELINE FILTER
+# ============================================================
+
+if timeline_start is not None and timeline_end is not None:
+    mask = ((df["date"].dt.date >= timeline_start)
+            & (df["date"].dt.date <= timeline_end))
+    df = df[mask].copy()
+
+
+# ============================================================
+# HEADER
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -168,21 +372,18 @@ with k1:
         f"{total_reviews:,}",
         help=f"Total number of reviews: {total_reviews:,}",
     )
-
 with k2:
     st.metric(
         "Total Attractions",
         total_attractions,
         help=f"{total_attractions} attractions with reviews",
     )
-
 with k3:
     st.metric(
         "Average Rating",
         f"{overall_avg_rating} / 5.0",
         help=f"Average rating across {total_reviews:,} reviews",
     )
-
 with k4:
     st.metric(
         "Platform",
@@ -211,11 +412,7 @@ summary = (
 summary["Average_Rating"] = summary["Average_Rating"].round(2)
 summary = summary.sort_values("Reviews", ascending=False)
 
-st.dataframe(
-    summary,
-    use_container_width=True,
-    hide_index=True
-)
+st.dataframe(summary, use_container_width=True, hide_index=True)
 
 
 # ============================================================
