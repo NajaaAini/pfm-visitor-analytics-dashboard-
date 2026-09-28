@@ -1,4 +1,4 @@
-# 🚢 Penang Ferry Museum — Competitor Analysis Dashboard
+#  Penang Ferry Museum — Competitor Analysis Dashboard
 
 An interactive **Streamlit analytics dashboard** that turns Google Maps reviews into actionable business intelligence for **Penang Ferry Museum (PFM)** and benchmarks its performance against competing attractions across Penang, Malaysia.
 
@@ -9,7 +9,7 @@ An interactive **Streamlit analytics dashboard** that turns Google Maps reviews 
 
 ---
 
-## 📖 Table of Contents
+## 1) Table of Contents
 
 - [Overview](#-overview)
 - [Features](#-features)
@@ -27,7 +27,7 @@ An interactive **Streamlit analytics dashboard** that turns Google Maps reviews 
 
 ---
 
-## 🎯 Overview
+## 2) Overview
 
 Penang Ferry Museum receives visitor feedback through Google Maps reviews — but raw reviews alone don't tell the full story. This dashboard:
 
@@ -41,26 +41,26 @@ All insights are delivered through a clean, branded, multi-page Streamlit interf
 
 ---
 
-## ✨ Features
+## 3) Features
 
-### 📊 Analytics
+### 3.1) Analytics
 - **Sentiment analysis** derived from star ratings (4–5★ = Positive, 3★ = Neutral, 1–2★ = Negative)
 - **Owner response tracking** — response rate, response to negative reviews, sample responses
 - **Visit context breakdown** — Weekday / Weekend / Public Holiday
 - **Keyword extraction** — top positive & negative terms per attraction
 - **Trend analysis** — monthly volume, monthly average rating
 
-### 🧠 Machine Learning
+### 3.2) Machine Learning
 - **LDA topic modelling** with human-readable topic labels
 - **Rate-per-review gap analysis** to fairly compare attractions of different sizes
 - **Linear regression forecasting** combined with monthly seasonality
 
-### 🎨 Visualisation
+### 3.3) Visualisation
 - Interactive **Altair** charts (bars, lines, forecasts with confidence bands)
 - **WordCloud** visualisations (unigram & bigram)
 - **Folium** interactive maps for attraction locations
 
-### 🎛️ Interactivity
+### 3.4) Interactivity
 - Timeline filters (presets + custom range)
 - Multi-select competitor picker
 - Rating & sentiment filters
@@ -70,7 +70,7 @@ All insights are delivered through a clean, branded, multi-page Streamlit interf
 
 ---
 
-## 📄 Dashboard Pages
+## 4) Dashboard Pages
 
 | # | Page | Description |
 |---|------|-------------|
