@@ -375,10 +375,7 @@ st.markdown('<p class="pfm-section-title">5) Forecast - Linear Regression </p>',
 
 st.markdown("""
 <p class="pfm-description">
-    The AI learns two things:
-    Trend: is visitor volume going up, down, or flat over time?
-    Season: which months naturally attract more visitors?
-    It combines both to project the next few months.
+    Predicts future visitors using past trends and seasons.
 </p>
 """, unsafe_allow_html=True)
 
