@@ -513,13 +513,10 @@ with st.expander("**Show owner responses**"):
     else:
         for _, row in samples.iterrows():
             guest_text = str(row.get("text", "")).strip()
-            if len(guest_text) > 250:
-                guest_text = guest_text[:250] + "..."
-
             review_url = row.get("reviewUrl", "")
 
             st.markdown(f"**{row['rating']:.0f}★ review**")
-            st.write(guest_text)
+            st.write(guest_text)  # FULL review text — no truncation
             st.success(f"**Owner:** {row['responseFromOwnerText']}")
             if pd.notna(review_url) and str(review_url).strip():
                 st.markdown(f"[Read on Google]({review_url})")
@@ -871,9 +868,11 @@ if len(corpus_texts) >= 10:
 
         # ============================================================
         # 5.6) SAMPLE REVIEWS FOR SELECTED TOPIC (LDA-assigned)
+        #      FULL TEXT, no truncation, expander opened by default
         # ============================================================
 
-        with st.expander(f"See sample reviews for '{selected_topic}'"):
+        with st.expander(f"See sample reviews for '{selected_topic}'",
+                         expanded=True):
             for a in comparison_attractions:
                 rows_for_a = topic_assign[
                     (topic_assign["Attraction"] == a)
@@ -889,10 +888,12 @@ if len(corpus_texts) >= 10:
                 samples = a_full.loc[a_full.index.isin(sample_idx)]
 
                 for _, srow in samples.iterrows():
-                    with st.expander(
-                        f"{srow['rating']:.0f}★ — {srow.get('name', 'Anonymous')}"
-                    ):
-                        st.write(str(srow.get("text", "")).strip())
+                    st.markdown(
+                        f"**{srow['rating']:.0f}★ — {srow.get('name', 'Anonymous')}**"
+                    )
+                    st.write(str(srow.get("text", "")).strip())  # FULL text
+                    st.markdown("")
+
                 st.markdown("---")
 
         # ============================================================
@@ -1078,13 +1079,11 @@ if len(corpus_texts) >= 10:
                     if not competitor_comments.empty:
                         for _, comment_row in competitor_comments.iterrows():
                             comment_text = str(comment_row["text"]).strip()
-                            if len(comment_text) > 350:
-                                comment_text = comment_text[:350] + "..."
                             rating = comment_row["rating"]
                             platform = comment_row["platform"]
                             st.info(
                                 f"⭐ **{rating}/5** · {platform}\n\n"
-                                f"{comment_text}"
+                                f"{comment_text}"  # FULL text — no truncation
                             )
                     else:
                         st.caption(
