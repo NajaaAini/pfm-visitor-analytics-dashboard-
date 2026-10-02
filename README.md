@@ -1,7 +1,8 @@
-#  Penang Ferry Museum — Competitor Analysis Dashboard (https://pfm-visitor-analytics.streamlit.app/)
+#  Penang Ferry Museum — Competitor Analysis Dashboard 
 
 
-An interactive **Streamlit analytics dashboard** that turns Google Maps reviews into actionable business intelligence for **Penang Ferry Museum (PFM)** and benchmarks its performance against competing attractions across Penang, Malaysia.
+An interactive **Streamlit analytics dashboard** that turns Google Maps reviews into actionable business intelligence for **Penang Ferry Museum (PFM)** and benchmarks its performance against competing attractions across Penang, Malaysia. - (https://pfm-visitor-analytics.streamlit.app/)
+
 
 ![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
 ![Streamlit](https://img.shields.io/badge/Streamlit-1.30%2B-red)
