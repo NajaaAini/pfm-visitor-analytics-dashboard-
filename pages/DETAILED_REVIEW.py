@@ -619,10 +619,7 @@ if not review_df.empty:
 
         text_val = str(row.get("text", "")).strip()
 
-        # Truncate long text (but only when not searching — full text is useful in search mode)
-        if not (keyword and keyword.strip()):
-            if len(text_val) > 400:
-                text_val = text_val[:400] + "..."
+        # FULL review text — no truncation
 
         # Highlight keyword if searching
         if keyword and keyword.strip():
