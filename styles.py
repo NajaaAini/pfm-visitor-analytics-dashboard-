@@ -39,7 +39,16 @@ def apply_global_styles():
     st.markdown(f"""
     <style>
 
+    /* =========================================================
+       FONTS
+       - Material Symbols must come first so Streamlit icons
+         (like the sidebar collapse «) render as glyphs, not text.
+    ========================================================= */
+
+    @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0&display=swap');
     @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&display=swap');
+
 
     /* =========================================================
        GLOBAL
@@ -73,6 +82,47 @@ def apply_global_styles():
         border-bottom: 3px solid {YELLOW} !important;
     }}
     h3 {{ margin-top: 20px !important; }}
+
+
+    /* =========================================================
+       PRESERVE MATERIAL SYMBOLS ICON FONT
+       (fix: "keyboard_double_arrow_left" text instead of «)
+    ========================================================= */
+
+    [data-testid="stIconMaterial"],
+    span[data-testid="stIconMaterial"],
+    .material-symbols-rounded,
+    .material-symbols-outlined,
+    .material-symbols-sharp,
+    [class*="material-symbols"] {{
+        font-family: "Material Symbols Rounded",
+                     "Material Symbols Outlined",
+                     "Material Icons" !important;
+        font-weight: normal !important;
+        font-style: normal !important;
+        font-size: 24px !important;
+        line-height: 1 !important;
+        letter-spacing: normal !important;
+        text-transform: none !important;
+        display: inline-block !important;
+        white-space: nowrap !important;
+        word-wrap: normal !important;
+        direction: ltr !important;
+        -webkit-font-feature-settings: 'liga' !important;
+        -webkit-font-smoothing: antialiased !important;
+    }}
+
+    /* Also target the sidebar collapse / expand buttons specifically */
+    [data-testid="stSidebarCollapseButton"],
+    [data-testid="stSidebarCollapseButton"] *,
+    [data-testid="stSidebarCollapsedControl"],
+    [data-testid="stSidebarCollapsedControl"] *,
+    button[kind="header"] span,
+    button[kind="headerNoPadding"] span {{
+        font-family: "Material Symbols Rounded",
+                     "Material Symbols Outlined",
+                     "Material Icons" !important;
+    }}
 
 
     /* =========================================================
@@ -121,6 +171,16 @@ def apply_global_styles():
     [data-testid="stSidebar"] h2,
     [data-testid="stSidebar"] h3 {{
         font-family: "Poppins", Arial, sans-serif !important;
+    }}
+
+    /* Re-apply icon font INSIDE sidebar (because of the * override above) */
+    [data-testid="stSidebar"] [data-testid="stIconMaterial"],
+    [data-testid="stSidebar"] span[data-testid="stIconMaterial"],
+    [data-testid="stSidebar"] .material-symbols-rounded,
+    [data-testid="stSidebar"] [class*="material-symbols"] {{
+        font-family: "Material Symbols Rounded",
+                     "Material Symbols Outlined",
+                     "Material Icons" !important;
     }}
 
     /* Sidebar navigation radio */
@@ -196,18 +256,6 @@ def apply_global_styles():
         margin: 0 !important;
         padding: 0 !important;
         width: 100% !important;
-    }}
-
-    /* Highlight active page_link */
-    [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] {{
-        background: {YELLOW} !important;
-        border-color: {YELLOW} !important;
-        box-shadow: 0 3px 10px rgba(242, 183, 5, 0.3) !important;
-    }}
-
-    [data-testid="stSidebar"] [data-testid="stPageLink-NavLink"][aria-current="page"] p {{
-        color: {INK} !important;
-        font-weight: 800 !important;
     }}
 
     /* Hide any icon next to the page_link label */
@@ -398,6 +446,25 @@ def apply_global_styles():
 
 
     /* =========================================================
+       HIDE INPUT INSTRUCTIONS ("keyboard_double_..." overlay)
+    ========================================================= */
+
+    div[data-testid="stTextInput"] div[data-testid="InputInstructions"],
+    div[data-testid="stTextArea"] div[data-testid="InputInstructions"],
+    div[data-testid="stNumberInput"] div[data-testid="InputInstructions"],
+    div[data-testid="stDateInput"] div[data-testid="InputInstructions"],
+    div[data-testid="stTimeInput"] div[data-testid="InputInstructions"],
+    div[data-testid="InputInstructions"],
+    small[data-testid="InputInstructions"],
+    div[data-baseweb="input"] + div[data-testid="InputInstructions"] {{
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+    }}
+
+
+    /* =========================================================
        ALERTS / DIVIDERS
     ========================================================= */
 
@@ -447,7 +514,7 @@ def render_sidebar(
     ----------
     current_page : str
         One of: "pfm_analysis", "comparison", "detail_review",
-        "overview_places".
+        "overview_places", "forecast".
 
     Returns
     -------
