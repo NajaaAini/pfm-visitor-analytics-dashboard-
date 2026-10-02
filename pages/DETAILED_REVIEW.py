@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import folium
 import base64
+import re
 from pathlib import Path
 from streamlit_folium import st_folium
 from wordcloud import WordCloud
@@ -55,6 +56,24 @@ div[data-baseweb="select"] input::placeholder {
 div[data-baseweb="popover"] li:hover {
     background-color: #FFF3CC !important;
 }
+
+/* Keyword search box styling */
+div[data-testid="stTextInput"] input {
+    background-color: #FFF9E6 !important;
+    color: #292929 !important;
+    border: 1px solid #F2B705 !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+}
+div[data-testid="stTextInput"] input:focus {
+    border: 2px solid #F2B705 !important;
+    box-shadow: 0 0 0 2px rgba(242, 183, 5, 0.2) !important;
+    outline: none !important;
+}
+div[data-testid="stTextInput"] input::placeholder {
+    color: #A08000 !important;
+    font-style: italic !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -98,13 +117,8 @@ if "sentiment" not in df.columns:
 # ============================================================
 # SIDEBAR
 # ============================================================
-# 1. render_sidebar() — brand + navigation SAHAJA
-# 2. Attraction Selection (buat sendiri)
-# 3. Timeline Filter        (buat sendiri)  ← DI SINI
-# 4. Review & Text Filters  (buat sendiri)
-# ============================================================
 
-# ----- 1) Brand + navigation (TIADA attraction / filters) -----
+# ----- 1) Brand + navigation -----
 render_sidebar(
     current_page="detail_review",
     show_attraction_selector=False,
@@ -140,7 +154,7 @@ with st.sidebar:
     )
 
 
-# ----- 3) TIMELINE FILTER  ← DI BAWAH ATTRACTION -----
+# ----- 3) TIMELINE FILTER -----
 valid_dates = df["date"].dropna()
 
 timeline_start = None
@@ -221,7 +235,7 @@ if not valid_dates.empty:
     timeline_end = end_date
 
 
-# ----- 4) Review & Text Filters  ← DI BAWAH TIMELINE -----
+# ----- 4) Review & Text Filters -----
 with st.sidebar:
 
     st.markdown("---")
@@ -352,6 +366,21 @@ def sub_heading(text):
 
 
 # ============================================================
+# KEYWORD HIGHLIGHT HELPER
+# ============================================================
+
+def highlight_keyword(text, keyword):
+    """Wrap keyword occurrences with markdown highlight."""
+    if not keyword or not keyword.strip():
+        return text
+    pattern = re.compile(re.escape(keyword.strip()), re.IGNORECASE)
+    return pattern.sub(
+        lambda m: f"**:orange[{m.group(0)}]**",
+        text,
+    )
+
+
+# ============================================================
 # 1) DATASET OVERVIEW
 # ============================================================
 
@@ -461,16 +490,33 @@ with c3:
 
 
 # ============================================================
-# 4) REVIEWS SUMMARY — table + download
+# 4) REVIEWS SUMMARY — table + download + keyword search
 # ============================================================
 
 st.markdown("---")
 st.markdown('<p class="pfm-section-title">3) Reviews Summary</p>',
             unsafe_allow_html=True)
 
+# ---------- KEYWORD SEARCH (Summary table) ----------
+summary_keyword = st.text_input(
+    "🔍 Filter reviews in this table",
+    placeholder="Type a keyword to filter the table (e.g., 'ferry', 'parking', 'staff')...",
+    key="summary_keyword_search",
+)
+
 table_df = analysis_df[
     analysis_df["text"].astype(str).str.strip() != ""
 ].copy()
+
+if summary_keyword and summary_keyword.strip():
+    table_df = table_df[
+        table_df["text"].str.contains(
+            summary_keyword.strip(), case=False, na=False, regex=False
+        )
+    ].copy()
+    st.caption(
+        f"🔎 **{len(table_df)}** review(s) match **'{summary_keyword.strip()}'**"
+    )
 
 if not table_df.empty:
     display_df = table_df[["platform", "rating", "sentiment",
@@ -495,25 +541,75 @@ if not table_df.empty:
         mime="text/csv",
     )
 else:
-    st.info("No reviews with text match the selected filters.")
+    if summary_keyword and summary_keyword.strip():
+        st.warning(f"No reviews match **'{summary_keyword.strip()}'**.")
+    else:
+        st.info("No reviews with text match the selected filters.")
 
 
 # ============================================================
-# 5) REVIEW DETAILS
+# 5) REVIEW DETAILS — keyword search + highlight
 # ============================================================
 
 st.markdown("---")
 st.markdown('<p class="pfm-section-title">4) Review Details</p>',
             unsafe_allow_html=True)
-st.caption("Showing latest 10 reviews with full details.")
 
+# ---------- KEYWORD SEARCH (Review Details) ----------
+search_col1, search_col2 = st.columns([3, 1])
+
+with search_col1:
+    keyword = st.text_input(
+        "🔍 Search reviews",
+        placeholder="Type a keyword (e.g., 'parking', 'staff', 'clean')...",
+        key="review_keyword_search",
+        label_visibility="collapsed",
+    )
+
+with search_col2:
+    show_all = st.checkbox(
+        "Show all matches",
+        value=False,
+        key="review_show_all",
+        help="By default shows the latest 10 matching reviews.",
+    )
+
+# ---------- APPLY SEARCH ----------
 review_df = analysis_df[
     analysis_df["text"].astype(str).str.strip() != ""
 ].copy()
 
-review_df["date"] = pd.to_datetime(review_df["date"], errors="coerce")
-review_df = review_df.sort_values("date", ascending=False).head(10)
+if keyword and keyword.strip():
+    review_df = review_df[
+        review_df["text"].str.contains(
+            keyword.strip(), case=False, na=False, regex=False
+        )
+    ].copy()
 
+review_df["date"] = pd.to_datetime(review_df["date"], errors="coerce")
+review_df = review_df.sort_values("date", ascending=False)
+
+total_matches = len(review_df)
+
+if not show_all:
+    review_df = review_df.head(10)
+
+# ---------- RESULT COUNT ----------
+if keyword and keyword.strip():
+    if total_matches == 0:
+        st.warning(f"No reviews match **'{keyword.strip()}'**.")
+    else:
+        shown = len(review_df)
+        st.caption(
+            f"🔎 Found **{total_matches}** review(s) matching "
+            f"**'{keyword.strip()}'** · showing **{shown}**"
+        )
+else:
+    st.caption(
+        f"Showing latest **{len(review_df)}** reviews with full details."
+    )
+
+# ---------- RENDER REVIEWS ----------
 if not review_df.empty:
     for _, row in review_df.iterrows():
         rating_val = row["rating"] if pd.notna(row["rating"]) else 0
@@ -522,8 +618,17 @@ if not review_df.empty:
             name_val = "Anonymous"
 
         text_val = str(row.get("text", "")).strip()
-        if len(text_val) > 400:
-            text_val = text_val[:400] + "..."
+
+        # Truncate long text (but only when not searching — full text is useful in search mode)
+        if not (keyword and keyword.strip()):
+            if len(text_val) > 400:
+                text_val = text_val[:400] + "..."
+
+        # Highlight keyword if searching
+        if keyword and keyword.strip():
+            display_text = highlight_keyword(text_val, keyword)
+        else:
+            display_text = text_val
 
         review_url = row.get("reviewUrl", "")
         owner_response = row.get("responseFromOwnerText", "")
@@ -536,7 +641,7 @@ if not review_df.empty:
             st.markdown(
                 f"**{name_val}** · **{rating_val:.0f}★** · *{date_str}* · {sentiment_val}"
             )
-            st.write(text_val)
+            st.markdown(display_text)
 
             if pd.notna(owner_response) and str(owner_response).strip():
                 st.success(f"**Owner:** {owner_response}")
@@ -544,7 +649,8 @@ if not review_df.empty:
             if pd.notna(review_url) and str(review_url).strip():
                 st.markdown(f"[Read on Google]({review_url})")
 else:
-    st.info("No reviews available for the selected filters.")
+    if not (keyword and keyword.strip()):
+        st.info("No reviews available for the selected filters.")
 
 
 # ============================================================
@@ -619,6 +725,45 @@ st.markdown("""
 </p>
 """, unsafe_allow_html=True)
 
+
+# ============================================================
+# CUSTOM LOCATIONS (HARDCODED)
+# ============================================================
+# Semua marker guna icon ferry (ship):
+#   dataset → merah (red)
+#   custom  → biru  (blue)
+# ============================================================
+
+CUSTOM_LOCATIONS = [
+    {
+        "name": "Kek Lok Si Temple",
+        "lat": 5.3993,
+        "lng": 100.2736,
+    },
+    {
+        "name": "Chew Jetty",
+        "lat": 5.413576782644611,
+        "lng": 100.34017462330446,
+    },
+    {
+        "name": "Hin Bus Depot",
+        "lat": 5.412464110636859,
+        "lng": 100.32808540109448,
+    },
+    {
+        "name": "Gurney Bay Park",
+        "lat": 5.433383267917253,
+        "lng": 100.32331398624294,
+    },
+    {
+        "name": "Akuarium Tunku Abdul Rahman (AkuaTAR)",
+        "lat": 5.28710975671712,
+        "lng": 100.28840845142153,
+    },
+]
+
+
+# ---------- BASE COORDS FROM DATAFRAME ----------
 coords_per_attraction = (
     df.dropna(subset=["lat", "lng"])
     .groupby("attraction_name")[["lat", "lng"]]
@@ -626,23 +771,44 @@ coords_per_attraction = (
     .reset_index()
 )
 
+coords_per_attraction["source"] = "dataset"
+
+# ---------- GABUNG CUSTOM + DATASET ----------
+custom_df = pd.DataFrame(CUSTOM_LOCATIONS)
+if not custom_df.empty:
+    custom_df = custom_df.rename(columns={"name": "attraction_name"})
+    custom_df["source"] = "custom"
+
+    map_coords = pd.concat(
+        [coords_per_attraction, custom_df],
+        ignore_index=True,
+    )
+else:
+    map_coords = coords_per_attraction
+
+
+# ---------- SELECTOR ----------
 map_selected_attraction = st.selectbox(
     "Select an attraction to view on the map",
-    ["All"] + sorted(coords_per_attraction["attraction_name"].tolist()),
-    key="map_attraction_selector"
+    ["All"] + sorted(map_coords["attraction_name"].tolist()),
+    key="map_attraction_selector",
 )
 
 
 # ---------- VIEW: SELECTED ATTRACTION ----------
 if map_selected_attraction != "All":
 
-    row = coords_per_attraction[
-        coords_per_attraction["attraction_name"] == map_selected_attraction
+    row = map_coords[
+        map_coords["attraction_name"] == map_selected_attraction
     ].iloc[0]
 
     lat = row["lat"]
     lng = row["lng"]
+    is_custom = row["source"] == "custom"
 
+    marker_color = "blue" if is_custom else "red"
+
+    # Data review hanya wujud kalau attraction tu ada dalam df
     specific_df = df[df["attraction_name"] == map_selected_attraction].copy()
 
     col_info, col_map = st.columns([1, 1])
@@ -655,69 +821,87 @@ if map_selected_attraction != "All":
         </p>
         """, unsafe_allow_html=True)
 
-        total_revs = len(specific_df)
-
-        avg_rating = specific_df["rating"].mean()
-        avg_rating = round(avg_rating, 2) if pd.notna(avg_rating) else "N/A"
-
-        specific_df["sentiment"] = specific_df["rating"].apply(
-            lambda x: "Positive" if pd.notna(x) and x >= 4
-            else ("Neutral" if pd.notna(x) and x == 3
-            else ("Negative" if pd.notna(x) else "Unknown"))
-        )
-
-        positive_count = specific_df["sentiment"].eq("Positive").sum()
-        negative_count = specific_df["sentiment"].eq("Negative").sum()
-
-        positive_rate = (positive_count / total_revs * 100) if total_revs > 0 else 0
-        negative_rate = (negative_count / total_revs * 100) if total_revs > 0 else 0
-
-        specific_df["date"] = pd.to_datetime(
-            specific_df["date"], errors="coerce"
-        )
-
-        latest_date = specific_df["date"].max()
-
-        if pd.notna(latest_date):
-            latest_date_text = latest_date.strftime("%d %b %Y")
+        if specific_df.empty:
+            # Custom location — takda data review
+            st.markdown(
+                f"""
+                <div class="pfm-card">
+                <p class="pfm-card-title">{map_selected_attraction}</p>
+                <p class="pfm-description">
+                    This is a manually added location — no review data
+                    available in the dataset.
+                </p>
+                <b>Latitude:</b> {lat:.5f}<br>
+                <b>Longitude:</b> {lng:.5f}<br>
+                <b>Source:</b> Manual entry
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         else:
-            latest_date_text = "N/A"
+            total_revs = len(specific_df)
 
-        st.markdown(
-            f"""
-            <div class="pfm-card">
+            avg_rating = specific_df["rating"].mean()
+            avg_rating = round(avg_rating, 2) if pd.notna(avg_rating) else "N/A"
 
-            <p class="pfm-card-title">
-                {map_selected_attraction}
-            </p>
+            specific_df["sentiment"] = specific_df["rating"].apply(
+                lambda x: "Positive" if pd.notna(x) and x >= 4
+                else ("Neutral" if pd.notna(x) and x == 3
+                else ("Negative" if pd.notna(x) else "Unknown"))
+            )
 
-            <p class="pfm-description">
-                Performance summary based on the available
-                Google Maps reviews.
-            </p>
+            positive_count = specific_df["sentiment"].eq("Positive").sum()
+            negative_count = specific_df["sentiment"].eq("Negative").sum()
 
-            <b>Reviews Tracked:</b>
-            {total_revs:,}<br>
+            positive_rate = (positive_count / total_revs * 100) if total_revs > 0 else 0
+            negative_rate = (negative_count / total_revs * 100) if total_revs > 0 else 0
 
-            <b>Average Rating:</b>
-            {avg_rating} / 5.0<br>
+            specific_df["date"] = pd.to_datetime(
+                specific_df["date"], errors="coerce"
+            )
 
-            <b>Positive Reviews:</b>
-            {positive_rate:.1f}%<br>
+            latest_date = specific_df["date"].max()
 
-            <b>Negative Reviews:</b>
-            {negative_rate:.1f}%<br>
+            if pd.notna(latest_date):
+                latest_date_text = latest_date.strftime("%d %b %Y")
+            else:
+                latest_date_text = "N/A"
 
-            <b>Latest Review:</b>
-            {latest_date_text}<br>
+            st.markdown(
+                f"""
+                <div class="pfm-card">
 
-            <b>Platform:</b>
-            Google Maps
+                <p class="pfm-card-title">
+                    {map_selected_attraction}
+                </p>
 
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+                <p class="pfm-description">
+                    Performance summary based on the available
+                    Google Maps reviews.
+                </p>
+
+                <b>Reviews Tracked:</b>
+                {total_revs:,}<br>
+
+                <b>Average Rating:</b>
+                {avg_rating} / 5.0<br>
+
+                <b>Positive Reviews:</b>
+                {positive_rate:.1f}%<br>
+
+                <b>Negative Reviews:</b>
+                {negative_rate:.1f}%<br>
+
+                <b>Latest Review:</b>
+                {latest_date_text}<br>
+
+                <b>Platform:</b>
+                Google Maps
+
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
     with col_map:
 
@@ -730,7 +914,7 @@ if map_selected_attraction != "All":
         m = folium.Map(
             location=[lat, lng],
             zoom_start=15,
-            control_scale=True
+            control_scale=True,
         )
 
         folium.Marker(
@@ -738,17 +922,48 @@ if map_selected_attraction != "All":
             popup=map_selected_attraction,
             tooltip=map_selected_attraction,
             icon=folium.Icon(
-                color="red",
+                color=marker_color,
                 icon="ship",
-                prefix="fa"
-            )
+                prefix="fa",
+            ),
         ).add_to(m)
 
         st_folium(
             m,
             height=350,
-            use_container_width=True
+            use_container_width=True,
         )
+
+        # Legend
+        st.markdown("""
+        <div style="
+            display:flex;
+            gap:24px;
+            margin-top:8px;
+            font-family:'Lato',Arial,sans-serif;
+            font-size:13px;
+            color:#444;
+        ">
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="
+                    display:inline-block;
+                    width:12px;height:12px;
+                    border-radius:50%;
+                    background:#E74C3C;
+                "></span>
+                <span><b>Dataset</b> — attractions with review data</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;">
+                <span style="
+                    display:inline-block;
+                    width:12px;height:12px;
+                    border-radius:50%;
+                    background:#3498DB;
+                "></span>
+                <span><b>Custom</b> — manually added locations (no review data)</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 
 # ---------- VIEW: ALL ATTRACTIONS ----------
@@ -757,9 +972,10 @@ else:
     m = folium.Map(
         location=[5.4164, 100.3400],
         zoom_start=13,
-        control_scale=True
+        control_scale=True,
     )
 
+    # Dataset markers — merah, icon ship
     for _, row in coords_per_attraction.iterrows():
 
         folium.Marker(
@@ -769,12 +985,56 @@ else:
             icon=folium.Icon(
                 color="red",
                 icon="ship",
-                prefix="fa"
-            )
+                prefix="fa",
+            ),
+        ).add_to(m)
+
+    # Custom markers — biru, icon ship
+    for loc in CUSTOM_LOCATIONS:
+        folium.Marker(
+            [loc["lat"], loc["lng"]],
+            popup=f"{loc['name']}",
+            tooltip=f"{loc['name']}",
+            icon=folium.Icon(
+                color="blue",
+                icon="ship",
+                prefix="fa",
+            ),
         ).add_to(m)
 
     st_folium(
         m,
         height=500,
-        use_container_width=True
+        use_container_width=True,
     )
+
+    # Legend
+    st.markdown("""
+    <div style="
+        display:flex;
+        gap:24px;
+        margin-top:8px;
+        font-family:'Lato',Arial,sans-serif;
+        font-size:13px;
+        color:#444;
+    ">
+        <div style="display:flex;align-items:center;gap:6px;">
+            <span style="
+                display:inline-block;
+                width:12px;height:12px;
+                border-radius:50%;
+                background:#E74C3C;
+            "></span>
+            <span><b>Dataset</b> — attractions with review data</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+            <span style="
+                display:inline-block;
+                width:12px;height:12px;
+                border-radius:50%;
+                background:#3498DB;
+            "></span>
+            <span><b>Custom</b> — manually added locations (no review data)</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
